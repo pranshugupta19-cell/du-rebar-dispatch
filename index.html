@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DU Rebar - Dispatch</title>
+<style>
+  :root{--indigo:#4338CA;--purple:#7C3AED;--bg:#F5F3FF;--text:#1E1B2E;--muted:#6B7280;--danger:#DC2626;--success:#059669;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
+  header{background:linear-gradient(135deg,var(--indigo),var(--purple));color:#fff;padding:18px 20px;}
+  header h1{font-size:17px;margin:0;font-weight:700;}
+  header .sub{font-size:11px;opacity:.85;margin-top:2px;}
+  .wrap{max-width:480px;margin:0 auto;padding:16px;}
+  .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 6px;text-transform:uppercase;letter-spacing:.03em;}
+  select,input,textarea{width:100%;padding:12px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:16px;}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--indigo);}
+  button{width:100%;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:700;background:var(--indigo);color:#fff;margin-top:16px;}
+  button:disabled{background:#C7C3E0;}
+  .stockPill{display:inline-flex;align-items:center;gap:6px;background:#EEF2FF;color:var(--indigo);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600;margin-top:10px;}
+  .msg{padding:12px;border-radius:10px;font-size:14px;margin-top:12px;text-align:center;font-weight:600;}
+  .msg.ok{background:#ECFDF5;color:var(--success);}
+  .msg.err{background:#FEF2F2;color:var(--danger);}
+  .hidden{display:none;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:6px 4px;border-bottom:1px solid #E5E7EB;}
+  td{padding:8px 4px;border-bottom:1px solid #F1F1F5;}
+  td.qty{font-weight:700;text-align:right;color:var(--indigo);}
+  .refresh{font-size:12px;color:var(--muted);text-align:right;margin-top:-6px;margin-bottom:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dispatch Entry</h1>
+  <div class="sub">Finished GFRP rebar - stock out</div>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <div class="refresh"><a href="#" onclick="loadStock();return false;" style="color:var(--indigo)">Refresh stock ↻</a></div>
+    <table>
+      <thead><tr><th>Dia</th><th>Type</th><th style="text-align:right">Stock (m)</th></tr></thead>
+      <tbody id="stockBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <label>Diameter (mm)</label>
+    <select id="diameter" onchange="renderPill()">
+      <option>6</option><option>8</option><option>10</option><option>12</option>
+      <option>16</option><option>20</option><option>25</option>
+    </select>
+
+    <label>Type</label>
+    <select id="type" onchange="renderPill()">
+      <option value="bundle">Bundle (straight)</option>
+      <option value="coil">Coil</option>
+      <option value="L">L-bend</option>
+      <option value="Z">Z-bend</option>
+      <option value="U">U-bend</option>
+      <option value="Custom">Custom bend</option>
+    </select>
+
+    <div class="stockPill" id="stockPill">Current stock: -</div>
+
+    <label>Metres dispatched</label>
+    <input type="number" id="metres" inputmode="decimal" placeholder="0">
+
+    <label>Client / Site</label>
+    <input type="text" id="client" placeholder="e.g. Singla Mani Majra">
+
+    <label>Operator</label>
+    <input type="text" id="operator" placeholder="Your name">
+
+    <label>Notes (optional)</label>
+    <textarea id="note" rows="2" placeholder="Vehicle no., invoice ref, etc."></textarea>
+
+    <button id="submitBtn" onclick="submitDispatch()">Record Dispatch</button>
+    <div id="resultMsg" class="msg hidden"></div>
+  </div>
+</div>
+
+<script>
+  // ===== CONFIG: paste the Web App URL from the DispatchStock.gs deployment =====
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycPRn54tfG0cHGshNiakBRAft5uxMCtk42clZrgrX29RKEf48AZkJb-DdPmI4x7H8E/exec";
+
+  let stockData = [];
+
+  function loadStock(){
+    document.getElementById('stockBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    const cb = 'cb' + Date.now();
+    window[cb] = function(data){ stockData = data.stock || []; renderTable(); renderPill(); };
+    const s = document.createElement('script');
+    s.src = SCRIPT_URL + '?action=stock&callback=' + cb;
+    document.body.appendChild(s);
+  }
+
+  function renderTable(){
+    const rows = stockData.filter(r => r.stock_m !== 0);
+    const tbody = document.getElementById('stockBody');
+    if (rows.length === 0){
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted)">No stock recorded yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r =>
+      '<tr><td>'+r.diameter+'mm</td><td>'+r.type+'</td><td class="qty">'+r.stock_m+'</td></tr>'
+    ).join('');
+  }
+
+  function renderPill(){
+    const dia = document.getElementById('diameter').value;
+    const type = document.getElementById('type').value;
+    const match = stockData.find(r => String(r.diameter) === dia && r.type === type);
+    document.getElementById('stockPill').textContent = 'Current stock: ' + (match ? match.stock_m : 0) + ' m';
+  }
+
+  function submitDispatch(){
+    const diameter = document.getElementById('diameter').value;
+    const type = document.getElementById('type').value;
+    const metres = document.getElementById('metres').value;
+    const client = document.getElementById('client').value;
+    const operator = document.getElementById('operator').value;
+    const note = document.getElementById('note').value;
+    const btn = document.getElementById('submitBtn');
+    const msg = document.getElementById('resultMsg');
+
+    if (!metres || Number(metres) <= 0){
+      msg.className = 'msg err'; msg.textContent = 'Enter a valid metres value'; msg.classList.remove('hidden');
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'dispatch', diameter, type, metres, client, operator, note })
+    }).then(r => r.json()).then(() => {
+      msg.className = 'msg ok'; msg.textContent = 'Dispatch recorded'; msg.classList.remove('hidden');
+      document.getElementById('metres').value = '';
+      document.getElementById('client').value = '';
+      document.getElementById('note').value = '';
+      btn.disabled = false; btn.textContent = 'Record Dispatch';
+      loadStock();
+    }).catch(() => {
+      msg.className = 'msg err'; msg.textContent = 'Failed to save - check connection'; msg.classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'Record Dispatch';
+    });
+  }
+
+  loadStock();
+</script>
+</body>
+</html>
