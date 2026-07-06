@@ -131,10 +131,15 @@
     }
     btn.disabled = true; btn.textContent = 'Saving...';
 
+const now = new Date();
+    const dispatchDate = now.toISOString().split('T')[0];
+    const dispatchTime = now.toTimeString().split(' ')[0];
+    const dispatchId = 'd_' + Date.now();
+
     fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'dispatch', diameter, type, metres, client, operator, note })
+      body: JSON.stringify({ sheet: 'Dispatch', date: dispatchDate, time: dispatchTime, diameter, type, metres, client, operator, note, id: dispatchId })
     }).then(r => r.json()).then(() => {
       msg.className = 'msg ok'; msg.textContent = 'Dispatch recorded'; msg.classList.remove('hidden');
       document.getElementById('metres').value = '';
