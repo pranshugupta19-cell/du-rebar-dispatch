@@ -135,6 +135,11 @@ const now = new Date();
     const dispatchTime = now.toTimeString().split(' ')[0];
     const dispatchId = 'd_' + Date.now();
 
+const now = new Date();
+    const dispatchDate = now.toISOString().split('T')[0];
+    const dispatchTime = now.toTimeString().split(' ')[0];
+    const dispatchId = 'd_' + Date.now();
+
     fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
